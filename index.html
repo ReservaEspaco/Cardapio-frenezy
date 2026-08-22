@@ -329,15 +329,7 @@ footer{text-align:center; padding:24px; font-size:11px; color:var(--brown); font
           <h3 id="formTitle">Adicionar item</h3>
           <div class="field">
             <label>Categoria</label>
-            <select id="f_categoria">
-              <option value="porcoes">Porções</option>
-              <option value="extras">Extras</option>
-              <option value="artesanal">Hambúrguer Artesanal</option>
-              <option value="tradicional">Hambúrguer Tradicional</option>
-              <option value="hotdog">Hot Dog</option>
-              <option value="pasteis">Pastéis</option>
-              <option value="bebidas">Bebidas</option>
-            </select>
+            <select id="f_categoria"></select>
           </div>
           <div class="field">
             <label>Nome do item</label>
@@ -376,6 +368,33 @@ footer{text-align:center; padding:24px; font-size:11px; color:var(--brown); font
         </div>
 
         <div class="panel-box">
+          <h3 style="font-size:15px;">Categorias do cardápio</h3>
+          <div id="categoriasList"></div>
+          <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:14px;">
+            <div class="field">
+              <label>Nome da nova categoria</label>
+              <input type="text" id="newCat_nome" placeholder="Ex: Sobremesas">
+            </div>
+            <div class="field">
+              <label>Subtítulo (opcional)</label>
+              <input type="text" id="newCat_sub" placeholder="Ex: pra fechar com chave de ouro">
+            </div>
+            <div class="field">
+              <label>Ícone (opcional, um emoji)</label>
+              <input type="text" id="newCat_icone" placeholder="Ex: 🍰" maxlength="4">
+            </div>
+            <div class="field">
+              <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13px;">
+                <input type="checkbox" id="newCat_combo" style="width:auto;">
+                Elegível pra virar combo (+R$)
+              </label>
+            </div>
+            <button class="btn-solid" id="addCatBtn">Adicionar categoria</button>
+            <div class="save-msg" id="catMsg"></div>
+          </div>
+        </div>
+
+        <div class="panel-box">
           <h3 style="font-size:15px;">Configurações da loja</h3>
           <div class="field">
             <label>Nome da loja</label>
@@ -397,6 +416,20 @@ footer{text-align:center; padding:24px; font-size:11px; color:var(--brown); font
           <div class="field">
             <label>Aviso/promoção (aparece no topo do cardápio, deixe vazio pra esconder)</label>
             <textarea id="cfg_aviso" placeholder="Ex: Hambúrguer + R$12 vira combo com batata e refri"></textarea>
+          </div>
+          <div class="field" style="border-top:1px solid var(--line); padding-top:14px;">
+            <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13px;">
+              <input type="checkbox" id="cfg_comboAtivo" style="width:auto;">
+              Oferecer opção de virar combo no carrinho (hambúrguer, hot dog e pastel)
+            </label>
+          </div>
+          <div class="field">
+            <label>Acréscimo do combo (R$)</label>
+            <input type="number" id="cfg_comboPreco" step="0.01" min="0" placeholder="Ex: 12">
+          </div>
+          <div class="field">
+            <label>O que vem no combo</label>
+            <input type="text" id="cfg_comboDesc" placeholder="Ex: Batata P + Refri 350ml">
           </div>
           <button class="btn-solid" id="saveCfgBtn">Salvar configurações</button>
           <div class="save-msg" id="cfgMsg"></div>
@@ -420,13 +453,6 @@ footer{text-align:center; padding:24px; font-size:11px; color:var(--brown); font
           <div class="filter-row">
             <select id="filterCat">
               <option value="todas">Todas as categorias</option>
-              <option value="porcoes">Porções</option>
-              <option value="extras">Extras</option>
-              <option value="artesanal">Hambúrguer Artesanal</option>
-              <option value="tradicional">Hambúrguer Tradicional</option>
-              <option value="hotdog">Hot Dog</option>
-              <option value="pasteis">Pastéis</option>
-              <option value="bebidas">Bebidas</option>
             </select>
           </div>
           <div id="adminList"><p class="empty-msg">Carregando…</p></div>
@@ -531,20 +557,30 @@ const adminDoc = db.collection('config').doc('admin');
 
 /* ============ CONSTANTS ============ */
 const LS_CART = 'cardapio_cart';
-const CATS = {porcoes:'Porções', extras:'Extras', artesanal:'Hambúrguer Artesanal', tradicional:'Hambúrguer Tradicional', hotdog:'Hot Dog', pasteis:'Pastéis', bebidas:'Bebidas'};
-const CAT_SUB = {
-  porcoes:'pra compartilhar (ou não)',
-  extras:'monte o seu do jeito que quiser',
-  artesanal:'blend 130g, pão brioche, receitas autorais',
-  tradicional:'o clássico de pão e hambúrguer 56g',
-  hotdog:'pão de ninho e salsicha na chapa',
-  pasteis:'crocantes, fritos na hora',
-  bebidas:'refrigerante, suco e água geladinha'
-};
-const CAT_ICON = {
-  porcoes:'🍟', extras:'🧂', artesanal:'🍔', tradicional:'🍔', hotdog:'🌭', pasteis:'🥟', bebidas:'🥤'
-};
-const DEFAULT_CONFIG = {nome:'Frenezy', whats:'5561981686306', aviso:'O valor do hambúrguer, hot dog ou pastel + R$ 12,00 vira combo com batata P e 1 refri mineiro 350ml.', horario:'19:00 às 00:00', pedidoMinimo:20};
+const DEFAULT_CATEGORIAS = [
+  {slug:'porcoes', nome:'Porções', sub:'pra compartilhar (ou não)', icone:'🍟', combo:false},
+  {slug:'extras', nome:'Extras', sub:'monte o seu do jeito que quiser', icone:'🧂', combo:false},
+  {slug:'artesanal', nome:'Hambúrguer Artesanal', sub:'blend 130g, pão brioche, receitas autorais', icone:'🍔', combo:true},
+  {slug:'tradicional', nome:'Hambúrguer Tradicional', sub:'o clássico de pão e hambúrguer 56g', icone:'🍔', combo:true},
+  {slug:'hotdog', nome:'Hot Dog', sub:'pão de ninho e salsicha na chapa', icone:'🌭', combo:true},
+  {slug:'pasteis', nome:'Pastéis', sub:'crocantes, fritos na hora', icone:'🥟', combo:true},
+  {slug:'bebidas', nome:'Bebidas', sub:'refrigerante, suco e água geladinha', icone:'🥤', combo:false}
+];
+const DEFAULT_CONFIG = {nome:'Frenezy', whats:'5561981686306', aviso:'O valor do hambúrguer, hot dog ou pastel + R$ 12,00 vira combo com batata P e 1 refri mineiro 350ml.', horario:'19:00 às 00:00', pedidoMinimo:20, comboAtivo:true, comboPreco:12, comboDesc:'Batata P + Refri 350ml', categorias:DEFAULT_CATEGORIAS};
+
+function slugify(nome){
+  let base = nome.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  if(!base) base = 'categoria';
+  let slug = base, n = 2;
+  while(categorias.some(c=>c.slug===slug)){ slug = `${base}-${n}`; n++; }
+  return slug;
+}
+function catNome(slug){ const c = categorias.find(x=>x.slug===slug); return c ? c.nome : slug; }
+function catSub(slug){ const c = categorias.find(x=>x.slug===slug); return c ? (c.sub||'') : ''; }
+function catIcon(slug){ const c = categorias.find(x=>x.slug===slug); return c ? (c.icone||'🍽️') : '🍽️'; }
+function comboCats(){ return categorias.filter(c=>c.combo).map(c=>c.slug); }
 
 /* ============ SEED DATA (usado só se a coleção 'items' estiver vazia) ============ */
 function seedItemsList(){
@@ -629,6 +665,7 @@ async function seedIfEmpty(){
 /* ============ STATE ============ */
 let items = [];
 let config = {...DEFAULT_CONFIG};
+let categorias = [...DEFAULT_CATEGORIAS];
 let cart = JSON.parse(localStorage.getItem(LS_CART) || '[]');
 let activeCat = 'porcoes';
 let isAdmin = false;
@@ -778,6 +815,9 @@ function applyConfigToUI(){
   document.getElementById('cfg_aviso').value = config.aviso || '';
   document.getElementById('cfg_horario').value = config.horario || '';
   document.getElementById('cfg_pedidoMinimo').value = config.pedidoMinimo ?? 0;
+  document.getElementById('cfg_comboAtivo').checked = !!config.comboAtivo;
+  document.getElementById('cfg_comboPreco').value = config.comboPreco ?? 12;
+  document.getElementById('cfg_comboDesc').value = config.comboDesc || '';
   document.getElementById('storeHours').textContent = config.horario || '';
   document.querySelector('.brand-mark').textContent = (config.nome||'F').trim()[0]?.toUpperCase() || 'F';
   const banner = document.getElementById('avisoBanner');
@@ -793,11 +833,11 @@ function applyConfigToUI(){
 function renderCatNav(){
   const nav = document.getElementById('catNav');
   nav.innerHTML = '';
-  Object.keys(CATS).forEach(cat=>{
+  categorias.forEach(c=>{
     const btn = document.createElement('button');
-    btn.className = 'cat-chip' + (cat===activeCat ? ' active':'');
-    btn.textContent = CATS[cat];
-    btn.onclick = ()=>{ activeCat = cat; renderCatNav(); renderMenu(); };
+    btn.className = 'cat-chip' + (c.slug===activeCat ? ' active':'');
+    btn.textContent = c.nome;
+    btn.onclick = ()=>{ activeCat = c.slug; renderCatNav(); renderMenu(); };
     nav.appendChild(btn);
   });
 }
@@ -806,7 +846,7 @@ function renderCatNav(){
 function renderMenu(){
   const area = document.getElementById('menuArea');
   const list = items.filter(i=>i.categoria===activeCat && i.ativo);
-  area.innerHTML = `<div class="cat-heading"><h2>${CATS[activeCat]||''}</h2><span class="sub">${CAT_SUB[activeCat]||''}</span></div>`;
+  area.innerHTML = `<div class="cat-heading"><h2>${catNome(activeCat)}</h2><span class="sub">${catSub(activeCat)}</span></div>`;
   const grid = document.createElement('div');
   grid.className = 'grid';
   if(list.length===0){
@@ -818,8 +858,8 @@ function renderMenu(){
     card.className = 'card';
     const hasPhoto = !!item.imagem;
     const mediaHTML = hasPhoto
-      ? `<img src="${item.imagem}" alt="${item.nome}" onerror="this.parentElement.classList.remove('has-photo'); this.parentElement.innerHTML='<span class=\\'ph-icon\\'>${CAT_ICON[item.categoria]||'🍽️'}</span>'">`
-      : `<span class="ph-icon">${CAT_ICON[item.categoria]||'🍽️'}</span>`;
+      ? `<img src="${item.imagem}" alt="${item.nome}" onerror="this.parentElement.classList.remove('has-photo'); this.parentElement.innerHTML='<span class=\\'ph-icon\\'>${catIcon(item.categoria)}</span>'">`
+      : `<span class="ph-icon">${catIcon(item.categoria)}</span>`;
     card.innerHTML = `
       <div class="card-media${hasPhoto ? ' has-photo' : ''}">${mediaHTML}</div>
       <div class="card-body">
@@ -857,7 +897,7 @@ document.getElementById('lightbox').onclick = (e)=>{
 function addToCart(id){
   const found = cart.find(c=>c.id===id);
   if(found) found.qty++;
-  else cart.push({id, qty:1});
+  else cart.push({id, qty:1, combo:false});
   saveCart();
   renderCartCount();
   renderCartDrawer();
@@ -881,16 +921,26 @@ function changeQty(id, delta){
   renderCartCount();
   renderCartDrawer();
 }
+function toggleCombo(id){
+  const found = cart.find(c=>c.id===id);
+  if(!found) return;
+  found.combo = !found.combo;
+  saveCart();
+  renderCartDrawer();
+}
 function removeFromCart(id){
   cart = cart.filter(c=>c.id!==id);
   saveCart();
   renderCartCount();
   renderCartDrawer();
 }
+function lineUnitPrice(item, c){
+  return item.preco + (c.combo ? (config.comboPreco||0) : 0);
+}
 function cartTotal(){
   return cart.reduce((sum,c)=>{
     const item = items.find(i=>i.id===c.id);
-    return sum + (item ? item.preco*c.qty : 0);
+    return sum + (item ? lineUnitPrice(item,c)*c.qty : 0);
   },0);
 }
 function renderCartCount(){
@@ -911,12 +961,14 @@ function renderCartDrawer(){
     cart.forEach(c=>{
       const item = items.find(i=>i.id===c.id);
       if(!item) return;
+      const eligible = config.comboAtivo && comboCats().includes(item.categoria);
       const row = document.createElement('div');
       row.className = 'cart-row';
+      row.style.flexWrap = 'wrap';
       row.innerHTML = `
         <div>
           <div class="ci-name">${item.nome}</div>
-          <div class="ci-price">${fmt(item.preco)} un.</div>
+          <div class="ci-price">${fmt(lineUnitPrice(item,c))} un.${c.combo ? ' (combo)' : ''}</div>
         </div>
         <div style="display:flex; align-items:center;">
           <div class="qty-ctrl">
@@ -925,10 +977,17 @@ function renderCartDrawer(){
             <button data-act="inc">+</button>
           </div>
           <button class="rm-btn">remover</button>
-        </div>`;
+        </div>
+        ${eligible ? `
+        <label style="width:100%; display:flex; align-items:center; gap:7px; margin-top:8px; padding:7px 9px; background:var(--cream); border-radius:6px; font-size:11px; cursor:pointer;">
+          <input type="checkbox" data-act="combo" ${c.combo ? 'checked' : ''} style="width:auto;">
+          Virar combo (+${fmt(config.comboPreco||0)}) — ${config.comboDesc || 'batata P + refri'}
+        </label>` : ''}`;
       row.querySelector('[data-act="dec"]').onclick = ()=>changeQty(c.id,-1);
       row.querySelector('[data-act="inc"]').onclick = ()=>changeQty(c.id,1);
       row.querySelector('.rm-btn').onclick = ()=>removeFromCart(c.id);
+      const comboCheckbox = row.querySelector('[data-act="combo"]');
+      if(comboCheckbox) comboCheckbox.onchange = ()=>toggleCombo(c.id);
       body.appendChild(row);
     });
   }
@@ -991,7 +1050,7 @@ document.getElementById('checkoutBtn').onclick = async ()=>{
 
   const orderItems = cart.map(c=>{
     const item = items.find(i=>i.id===c.id);
-    return item ? {nome:item.nome, qty:c.qty, preco:item.preco} : null;
+    return item ? {nome:item.nome, qty:c.qty, preco:lineUnitPrice(item,c), combo:!!c.combo} : null;
   }).filter(Boolean);
   const total = cartTotal();
 
@@ -1009,7 +1068,7 @@ document.getElementById('checkoutBtn').onclick = async ()=>{
 
   let msg = `Olá! Gostaria de fazer o seguinte pedido em *${config.nome}*:%0A%0A`;
   orderItems.forEach(it=>{
-    msg += `• ${it.qty}x ${it.nome} — ${fmt(it.preco*it.qty)}%0A`;
+    msg += `• ${it.qty}x ${it.nome}${it.combo ? ` (combo: ${config.comboDesc || 'batata + refri'})` : ''} — ${fmt(it.preco*it.qty)}%0A`;
   });
   msg += `%0A*Total: ${fmt(total)}*`;
   msg += `%0A*Forma de entrega: ${selectedDelivery}*`;
@@ -1068,6 +1127,8 @@ function showAdminView(){
   document.getElementById('clientView').style.display='none';
   document.getElementById('adminPanel').style.display='block';
   document.getElementById('adminToggleBtn').textContent='⚙️ Painel';
+  renderCategorySelects();
+  renderCategoriasList();
   renderAdminList();
   if(!ordersListenerStarted){
     ordersListenerStarted = true;
@@ -1081,6 +1142,86 @@ function showClientView(){
   renderCatNav();
   renderMenu();
 }
+
+/* ============ ADMIN: CATEGORIAS (Firestore) ============ */
+function renderCategorySelects(){
+  const fCat = document.getElementById('f_categoria');
+  const prevF = fCat.value;
+  fCat.innerHTML = categorias.map(c=>`<option value="${c.slug}">${c.nome}</option>`).join('');
+  if(categorias.some(c=>c.slug===prevF)) fCat.value = prevF;
+
+  const filterCat = document.getElementById('filterCat');
+  const prevFilter = filterCat.value;
+  filterCat.innerHTML = '<option value="todas">Todas as categorias</option>' +
+    categorias.map(c=>`<option value="${c.slug}">${c.nome}</option>`).join('');
+  if(['todas',...categorias.map(c=>c.slug)].includes(prevFilter)) filterCat.value = prevFilter;
+}
+
+async function saveCategorias(newList){
+  await configDoc.set({categorias:newList}, {merge:true});
+}
+
+function renderCategoriasList(){
+  const wrap = document.getElementById('categoriasList');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  categorias.forEach(c=>{
+    const count = items.filter(i=>i.categoria===c.slug).length;
+    const row = document.createElement('div');
+    row.className = 'item-list-row';
+    row.innerHTML = `
+      <div class="ilr-info">
+        <div class="ilr-name">${c.icone||'🍽️'} ${c.nome}</div>
+        <div class="ilr-meta">${count} ${count===1?'item':'itens'}${c.combo ? ' · elegível a combo' : ''}</div>
+      </div>
+      <div class="ilr-actions">
+        <button class="btn-toggle">${c.combo ? 'Tirar combo' : 'Dar combo'}</button>
+        <button class="btn-del">Excluir</button>
+      </div>`;
+    row.querySelector('.btn-toggle').onclick = async ()=>{
+      const updated = categorias.map(x=> x.slug===c.slug ? {...x, combo:!x.combo} : x);
+      try{ await saveCategorias(updated); }
+      catch(err){ alert('Erro ao atualizar categoria.'); }
+    };
+    row.querySelector('.btn-del').onclick = async ()=>{
+      let confirmMsg = `Excluir a categoria "${c.nome}"?`;
+      if(count>0) confirmMsg += `\n\n${count} ${count===1?'item está':'itens estão'} nessa categoria e ${count===1?'ficará escondido':'ficarão escondidos'} do cardápio até você mudar a categoria ${count===1?'dele':'deles'} ou excluí-${count===1?'lo':'los'}.`;
+      if(!confirm(confirmMsg)) return;
+      const updated = categorias.filter(x=>x.slug!==c.slug);
+      try{ await saveCategorias(updated); }
+      catch(err){ alert('Erro ao excluir categoria.'); }
+    };
+    wrap.appendChild(row);
+  });
+}
+
+document.getElementById('addCatBtn').onclick = async ()=>{
+  const nome = document.getElementById('newCat_nome').value.trim();
+  const sub = document.getElementById('newCat_sub').value.trim();
+  const icone = document.getElementById('newCat_icone').value.trim();
+  const combo = document.getElementById('newCat_combo').checked;
+  const msg = document.getElementById('catMsg');
+  if(!nome){
+    msg.style.color='var(--red)';
+    msg.textContent = 'Digite um nome pra categoria.';
+    return;
+  }
+  const slug = slugify(nome);
+  const updated = [...categorias, {slug, nome, sub, icone, combo}];
+  try{
+    await saveCategorias(updated);
+    document.getElementById('newCat_nome').value = '';
+    document.getElementById('newCat_sub').value = '';
+    document.getElementById('newCat_icone').value = '';
+    document.getElementById('newCat_combo').checked = false;
+    msg.style.color='#2D5016';
+    msg.textContent = 'Categoria adicionada!';
+  }catch(err){
+    msg.style.color='var(--red)';
+    msg.textContent = 'Erro ao adicionar categoria.';
+  }
+  setTimeout(()=>msg.textContent='',2500);
+};
 
 /* ============ ADMIN: ITEM CRUD (Firestore) ============ */
 const filterCatSel = document.getElementById('filterCat');
@@ -1101,7 +1242,7 @@ function renderAdminList(){
     row.innerHTML = `
       <div class="ilr-info">
         <div class="ilr-name">${item.nome} ${item.ativo?'':'<span style="color:var(--red);">(inativo)</span>'}</div>
-        <div class="ilr-meta">${CATS[item.categoria]||''} · ${fmt(item.preco)}</div>
+        <div class="ilr-meta">${catNome(item.categoria)} · ${fmt(item.preco)}</div>
       </div>
       <div class="ilr-actions">
         <button class="btn-toggle">${item.ativo?'Ocultar':'Ativar'}</button>
@@ -1193,9 +1334,12 @@ document.getElementById('saveCfgBtn').onclick = async ()=>{
   const aviso = document.getElementById('cfg_aviso').value.trim();
   const horario = document.getElementById('cfg_horario').value.trim();
   const pedidoMinimo = parseFloat(document.getElementById('cfg_pedidoMinimo').value) || 0;
+  const comboAtivo = document.getElementById('cfg_comboAtivo').checked;
+  const comboPreco = parseFloat(document.getElementById('cfg_comboPreco').value) || 0;
+  const comboDesc = document.getElementById('cfg_comboDesc').value.trim();
   const msg = document.getElementById('cfgMsg');
   try{
-    await configDoc.set({nome, whats, aviso, horario, pedidoMinimo});
+    await configDoc.set({nome, whats, aviso, horario, pedidoMinimo, comboAtivo, comboPreco, comboDesc});
     msg.style.color='#2D5016';
     msg.textContent = 'Configurações salvas!';
   }catch(err){
@@ -1280,7 +1424,7 @@ async function init(){
     items = snap.docs.map(d=>({id:d.id, ...d.data()}));
     renderCatNav();
     renderMenu();
-    if(isAdmin) renderAdminList();
+    if(isAdmin){ renderAdminList(); renderCategoriasList(); }
     renderCartDrawer();
   }, err=>{
     document.getElementById('menuArea').innerHTML = '<p class="empty-msg">Não foi possível carregar o cardápio. Verifique sua internet ou a configuração do Firebase.</p>';
@@ -1289,12 +1433,20 @@ async function init(){
   configDoc.onSnapshot(snap=>{
     if(snap.exists){
       config = {...DEFAULT_CONFIG, ...snap.data()};
+      categorias = (config.categorias && config.categorias.length) ? config.categorias : DEFAULT_CATEGORIAS;
+      if(!categorias.some(c=>c.slug===activeCat)) activeCat = categorias[0] ? categorias[0].slug : '';
       applyConfigToUI();
+      renderCatNav();
+      renderMenu();
+      renderCategorySelects();
+      if(isAdmin) renderAdminList();
+      if(isAdmin) renderCategoriasList();
       renderCartDrawer();
     }
   });
 
   renderCatNav();
+  renderCategorySelects();
   renderCartCount();
   renderCartDrawer();
 }
